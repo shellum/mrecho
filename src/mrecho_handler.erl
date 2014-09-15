@@ -8,7 +8,8 @@ init(_Transport, Req, []) ->
   {ok, Req, undefined}.
 
 handle(Req, State) ->
-  {ok, Req2} = cowboy_req:reply(200, [], <<"Hello world!">>, Req),
+  {ok, Contents} = file:read_file("priv/index.htm"),
+  {ok, Req2} = cowboy_req:reply(200, [], Contents, Req),
   {ok, Req2, State}.
 
 terminate(_Reason, _Req, _State) ->
