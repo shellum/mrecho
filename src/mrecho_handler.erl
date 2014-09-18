@@ -8,7 +8,7 @@ init(_Transport, Req, []) ->
   {ok, Req, undefined}.
 
 handle(Req, State) ->
-  {ok, Contents} = file:read_file("priv/index.htm"),
+  {ok, Contents} = lasso:get_content("priv/index.htm"),
   {ok, Req2} = cowboy_req:reply(200, [], Contents, Req),
   {ok, Req2, State}.
 
