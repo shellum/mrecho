@@ -2,7 +2,7 @@
 -behaviour(application).
 
 -export([start/2]).
--export([stop/1,go/3]).
+-export([stop/1]).
 
 -define(C_ACCEPTORS, 100).
 
