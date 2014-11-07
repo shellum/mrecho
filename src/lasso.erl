@@ -11,7 +11,8 @@ get_content(File, Data) ->
 replace(Content, Data) ->
   case is_list(Data) of
     false -> maps:fold(fun map_folder/3, Content, Data);
-    true  -> lists:foldl(fun list_folder/2, Content, Data)
+    true  -> lists:foldl(fun list_folder/2, Content, Data)%;
+%    _ -> Content
   end.
 
 map_folder(K, V, Acc) ->

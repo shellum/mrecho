@@ -7,4 +7,6 @@ start() ->
   ok = application:start(ranch),
   ok = application:start(cowlib),
   ok = application:start(cowboy),
-  ok = application:start(mrecho).
+  ok = application:start(mrecho),
+  inets:start(),
+  ssl:start().
