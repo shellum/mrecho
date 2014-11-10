@@ -10,7 +10,7 @@ start(_Type, _Args) ->
   Dispatch  = cowboy_router:compile([
 		{'_', [{"/", mrecho_handler, []}]}
 		]),
-  Port = 8080,
+  Port = port(),
   TransOpts = [{port, Port}],
   ProtoOpts = [{env, [{dispatch, Dispatch}]}],
 	{ok, _}   = cowboy:start_http(http, ?C_ACCEPTORS, TransOpts, ProtoOpts),
@@ -18,3 +18,12 @@ start(_Type, _Args) ->
 
 stop(_State) ->
 	ok.
+
+port() ->
+    case os:getenv("PORT") of
+        false ->
+            {ok, Port} = application:get_env(http_port),
+            Port;
+        Other ->
+            list_to_integer(Other)
+    end.
