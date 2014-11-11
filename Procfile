@@ -1,1 +1,1 @@
-web: ./bin/start vision -noinput
+web: ./bin/start mrecho -noinput
