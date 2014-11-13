@@ -21,9 +21,6 @@ stop(_State) ->
 
 port() ->
     case os:getenv("PORT") of
-        false ->
-            {ok, Port} = application:get_env(http_port),
-            Port;
-        Other ->
-            list_to_integer(Other)
+        false -> 8080;
+        Other -> list_to_integer(Other)
     end.

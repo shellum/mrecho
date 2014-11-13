@@ -23,7 +23,7 @@ EncodedEvent = jsx:encode(Event),
   {ok, Req3, State}.
 
 send_metric(Events) ->
-  Headers = [{"Authorization", "Basic " ++ base64:encode_to_string(<<"cameron.shellum@octanner.com:a68a20cadf48a00347d7d99bd52d12b102350d8839ccb0cd58feccbe732116c6">>)}],
+  Headers = [{"Authorization", "Basic " ++ base64:encode_to_string(credentials())}],
   case httpc:request(post, {"https://metrics-api.librato.com/v1/metrics", Headers, "application/json", Events}, [], []) of
     {ok, {{_, 200, _}, _Header, _Body}} ->
       200;
@@ -41,14 +41,22 @@ terminate(_Reason, _Req, _State) ->
 getMetrics(Str,Source,MeasureList) ->
   case Str of
     <<"measure#",_Rest/binary>> ->
-      KVPair = extractMetric(Str),
+      TagLen = string:len("measure#"),
+      KVPair = extractMetric(Str, TagLen),
       [K,V] = binary:split(list_to_binary(KVPair), [<<"=">>],[]),
       TunedV = binary:replace(V,<<"ms">>,<<"">>),
-      NewStart = size(K)+1+size(V)+string:len("measure#"),
-      getMetrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,TunedV}] | MeasureList]);
+      NewStart = size(K)+1+size(V)+TagLen,
+      getMetrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,TunedV},{source,Source}] | MeasureList]);
+    <<"count#",_Rest/binary>> ->
+      TagLen = string:len("count#"),
+      KVPair = extractMetric(Str, TagLen),
+      [K,V] = binary:split(list_to_binary(KVPair), [<<"=">>],[]),
+      NewStart = size(K)+1+size(V)+TagLen,
+      getMetrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,V},{source,Source}] | MeasureList]);
     <<"source=", _Rest/binary>> ->
-      Src = extractMetric(Str),
-      getMetrics(list_to_binary(string:substr(binary_to_list(Str),string:len("source=")+string:len(Src))),[Src | Source], MeasureList);
+      TagLen = string:len("source="),
+      Src = extractMetric(Str, TagLen),
+      getMetrics(list_to_binary(string:substr(binary_to_list(Str),TagLen+string:len(Src))),list_to_binary(Src), MeasureList);
     _ ->
       case size(Str) of
         0 ->
@@ -58,9 +66,22 @@ getMetrics(Str,Source,MeasureList) ->
       end
   end.
 
-extractMetric(Str) ->
+extractMetric(Str, TagLen) ->
   SpaceIndex = string:str(binary_to_list(Str), " "),
   case SpaceIndex of
-    0 -> string:substr(binary_to_list(Str), string:len("measure#")+1);
-    _ -> string:substr(binary_to_list(Str), string:len("measure#")+1, SpaceIndex - string:len("measure#")-1)
+    0 -> string:substr(binary_to_list(Str), TagLen+1);
+    _ -> string:substr(binary_to_list(Str), TagLen+1, SpaceIndex - TagLen-1)
   end.
+
+
+
+credentials() ->
+    Email = case os:getenv("LIBRATO_EMAIL") of
+        false -> "";
+        E -> E ++ ""
+    end,
+    ApiKey = case os:getenv("LIBRATO_API_KEY") of
+        false -> "";
+        A -> A
+    end,
+    list_to_binary(Email ++ ":" ++ ApiKey).
