@@ -24,7 +24,7 @@ EncodedEvent = jsx:encode(Event),
 
 send_metric(Events) ->
   Headers = [{"Authorization", "Basic " ++ base64:encode_to_string(credentials())}],
-  case httpc:request(post, {"https://metrics-api.librato.com/v1/metrics", Headers, "application/json", Events}, [], []) of
+  case httpc:request(post, {libratoUrl(), Headers, "application/json", Events}, [], []) of
     {ok, {{_, 200, _}, _Header, _Body}} ->
       200;
     {ok, {{_, I, _}, _Header, _Body}} when is_integer(I) ->
@@ -73,13 +73,19 @@ extractMetric(Str, TagLen) ->
     _ -> string:substr(binary_to_list(Str), TagLen+1, SpaceIndex - TagLen-1)
   end.
 
+libratoUrl() ->
+  case os:getenv("LIBRATO_URL") of
+      false -> "";
+      L -> L ++ ""
+  end.
+
 credentials() ->
-    Email = case os:getenv("LIBRATO_EMAIL") of
-        false -> "";
-        E -> E ++ ""
-    end,
-    ApiKey = case os:getenv("LIBRATO_API_KEY") of
-        false -> "";
-        A -> A
-    end,
-    list_to_binary(Email ++ ":" ++ ApiKey).
+  Email = case os:getenv("LIBRATO_EMAIL") of
+      false -> "";
+      E -> E ++ ""
+  end,
+  ApiKey = case os:getenv("LIBRATO_API_KEY") of
+      false -> "";
+      A -> A
+  end,
+  list_to_binary(Email ++ ":" ++ ApiKey).
