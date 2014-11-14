@@ -73,8 +73,6 @@ extractMetric(Str, TagLen) ->
     _ -> string:substr(binary_to_list(Str), TagLen+1, SpaceIndex - TagLen-1)
   end.
 
-
-
 credentials() ->
     Email = case os:getenv("LIBRATO_EMAIL") of
         false -> "";
