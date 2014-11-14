@@ -9,8 +9,9 @@ init(_Transport, Req, []) ->
 
 handle(Req, State) ->
   {ok, _Body, Req2} = cowboy_req:body(Req),
-  io:format("body: ~p",[_Body]),
-EventList = getMetrics(_Body, [], []),
+  StrippedBody = binary:replace(_Body, <<"\n">>,<<"">>),
+  io:format("body: ~p",[StrippedBody]),
+EventList = getMetrics(StrippedBody, [], []),
 io:format("eventlist: ~p",[EventList]),
 Event = [{<<"gauges">>, element(2,EventList)}],
 EncodedEvent = jsx:encode(Event),
@@ -25,9 +26,9 @@ EncodedEvent = jsx:encode(Event),
 send_metric(Events) ->
   Headers = [{"Authorization", "Basic " ++ base64:encode_to_string(credentials())}],
   case httpc:request(post, {libratoUrl(), Headers, "application/json", Events}, [], []) of
-    {ok, {{_, 200, _}, _Header, _Body}} ->
+    {ok, {{_, 200, _}, _Header, _NewBody}} ->
       200;
-    {ok, {{_, I, _}, _Header, _Body}} when is_integer(I) ->
+    {ok, {{_, I, _}, _Header, _NewBody}} when is_integer(I) ->
       I;
     {error, socket_closed_remotely} ->
       {error, <<"No socket">>};
