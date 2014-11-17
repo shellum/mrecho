@@ -15,7 +15,7 @@ handle(Req, State) ->
 
   case length(element(2,EventList)) of
     0 -> {ok, Req2, State};
-    X ->
+    _X ->
 
   io:format("event list: ~p\n",[EventList]),
   FormattedEventList = element(2,EventList),
