@@ -11,19 +11,24 @@ handle(Req, State) ->
   {ok, _Body, Req2} = cowboy_req:body(Req),
   StrippedBody = binary:replace(_Body, <<"\n">>,<<" ">>),
   io:format("body: ~p\n",[StrippedBody]),
-  EventList = getMetrics(StrippedBody, [], []),
+  EventList = getMetrics(StrippedBody, list_to_binary("production"), []),
+
+  case length(element(2,EventList)) of
+    0 -> {ok, Req2, State};
+    X ->
+
   io:format("event list: ~p\n",[EventList]),
   FormattedEventList = element(2,EventList),
   Event = [{<<"gauges">>, FormattedEventList}],
   EncodedEvent = jsx:encode(Event),
   io:format("event json: ~p\n\n",[EncodedEvent]),
 
-
   ResponseCode = send_metric(EncodedEvent),
   Resp = "{code:'"++integer_to_list(ResponseCode)++"'}",
 
   {ok, Req3} = cowboy_req:reply(200, [{<<"content-type">>, <<"application/json">>}], Resp, Req2),
-  {ok, Req3, State}.
+  {ok, Req3, State}
+end.
 
 send_metric(Events) ->
   Headers = [{"Authorization", "Basic " ++ base64:encode_to_string(credentials())}],
