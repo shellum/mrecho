@@ -10,15 +10,17 @@ init(_Transport, Req, []) ->
 handle(Req, State) ->
   {ok, _Body, Req2} = cowboy_req:body(Req),
   StrippedBody = binary:replace(_Body, <<"\n">>,<<"">>),
-  io:format("body: ~p",[StrippedBody]),
-EventList = getMetrics(StrippedBody, [], []),
-io:format("eventlist: ~p",[EventList]),
-Event = [{<<"gauges">>, element(2,EventList)}],
-EncodedEvent = jsx:encode(Event),
-  io:format("EVENT: ~p",[EncodedEvent]),
-  Z = send_metric(EncodedEvent),
-  %Z2 = jsx:encode(Z),
-  Resp = "{code:'"++integer_to_list(Z)++"'}",
+  io:format("body: ~p\n",[StrippedBody]),
+  EventList = getMetrics(StrippedBody, [], []),
+  io:format("event list: ~p\n",[EventList]),
+  FormattedEventList = element(2,EventList),
+  Event = [{<<"gauges">>, FormattedEventList}],
+  EncodedEvent = jsx:encode(Event),
+  io:format("event json: ~p\n\n",[EncodedEvent]),
+
+
+  ResponseCode = send_metric(EncodedEvent),
+  Resp = "{code:'"++integer_to_list(ResponseCode)++"'}",
 
   {ok, Req3} = cowboy_req:reply(200, [{<<"content-type">>, <<"application/json">>}], Resp, Req2),
   {ok, Req3, State}.
