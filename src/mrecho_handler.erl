@@ -9,7 +9,7 @@ init(_Transport, Req, []) ->
 
 handle(Req, State) ->
   {ok, _Body, Req2} = cowboy_req:body(Req),
-  StrippedBody = binary:replace(_Body, <<"\n">>,<<"">>),
+  StrippedBody = binary:replace(_Body, <<"\n">>,<<" ">>),
   io:format("body: ~p\n",[StrippedBody]),
   EventList = getMetrics(StrippedBody, [], []),
   io:format("event list: ~p\n",[EventList]),
