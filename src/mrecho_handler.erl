@@ -11,7 +11,7 @@ handle(Req, State) ->
   {ok, _Body, Req2} = cowboy_req:body(Req),
   StrippedBody = binary:replace(binary:replace(_Body, <<"\n">>,<<" ">>,[global]),<<"\\n">>,<<" ">>,[global]),
   io:format("body: ~p\n",[StrippedBody]),
-  EventList = getMetrics(StrippedBody, list_to_binary("production"), []),
+  EventList = getMetrics(StrippedBody, list_to_binary("unknown"), []),
 
   case length(element(2,EventList)) of
     0 -> {ok, Req2, State};
@@ -64,6 +64,20 @@ getMetrics(Str,Source,MeasureList) ->
       TagLen = string:len("source="),
       Src = extractMetric(Str, TagLen),
       getMetrics(list_to_binary(string:substr(binary_to_list(Str),TagLen+string:len(Src))),list_to_binary(Src), MeasureList);
+    <<"host=", _Rest/binary>> ->
+      TagLen = string:len("host="),
+      Src = extractMetric(Str, TagLen),
+      io:format("extractMetricz: ~p", [Src]),
+      ParsedSrc = case getLastPart(Src) of
+        "test" -> "test";
+        "dev" -> "dev";
+        "qa" -> "qa";
+        "production" -> "production";
+        "prod" -> "prod";
+        _ -> Src
+      end,
+      io:format("ParsedSrc: ~p",[ParsedSrc]),
+      getMetrics(list_to_binary(string:substr(binary_to_list(Str),TagLen+string:len(Src))),list_to_binary(ParsedSrc), MeasureList);
     <<"status=", _Rest/binary>> ->
       TagLen = string:len("status="),
       StatusCode = extractMetric(Str, TagLen),
@@ -86,6 +100,16 @@ extractMetric(Str, TagLen) ->
     0 -> string:substr(binary_to_list(Str), TagLen+1);
     _ -> string:substr(binary_to_list(Str), TagLen+1, SpaceIndex - TagLen-1)
   end.
+
+getLastPart(Str) ->
+  Tokens = string:tokens(Str, "-"),
+  io:format("Tokens: ~p",[Tokens]),
+  List = lists:reverse(Tokens),
+  io:format("List: ~p",[List]),
+  [H|_] = List,
+  H2 = string:substr(H, 1,string:str(H,".")-1),
+  io:format("H2: ~p",[H2]),
+  H2.
 
 libratoUrl() ->
   case os:getenv("LIBRATO_URL") of
