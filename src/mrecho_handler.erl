@@ -45,7 +45,6 @@ send_metric(Events) ->
 terminate(_Reason, _Req, _State) ->
   ok.
 
-
 getMetrics(Str,Source,MeasureList) ->
   case Str of
     <<"measure#",_Rest/binary>> ->
@@ -65,6 +64,13 @@ getMetrics(Str,Source,MeasureList) ->
       TagLen = string:len("source="),
       Src = extractMetric(Str, TagLen),
       getMetrics(list_to_binary(string:substr(binary_to_list(Str),TagLen+string:len(Src))),list_to_binary(Src), MeasureList);
+    <<"status=", _Rest/binary>> ->
+      TagLen = string:len("status="),
+      StatusCode = extractMetric(Str, TagLen),
+      K = list_to_binary("status." ++ StatusCode),
+      V = <<"1">>,
+      NewStart = string:len(StatusCode)+TagLen,
+      getMetrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,V},{source,Source}] | MeasureList]);
     _ ->
       case size(Str) of
         0 ->
