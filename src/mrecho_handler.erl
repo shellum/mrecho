@@ -69,11 +69,12 @@ getMetrics(Str,Source,MeasureList) ->
       Src = extractMetric(Str, TagLen),
       io:format("extractMetricz: ~p", [Src]),
       ParsedSrc = case getLastPart(Src) of
-        "test" -> "test";
+        "test" -> "dev";
         "dev" -> "dev";
+        "development" -> "dev";
         "qa" -> "qa";
         "production" -> "production";
-        "prod" -> "prod";
+        "prod" -> "production";
         _ -> Src
       end,
       io:format("ParsedSrc: ~p",[ParsedSrc]),
