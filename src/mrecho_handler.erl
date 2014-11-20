@@ -95,24 +95,24 @@ extractMetric(Str, TagLen) ->
     _ -> string:substr(binary_to_list(Str), TagLen+1, SpaceIndex - TagLen-1)
   end.
 
-getEnvFromHost(Str) ->
-  Tokens = string:tokens(Str, "-"),
-  io:format("Tokens: ~p",[Tokens]),
-  List = lists:reverse(Tokens),
-  io:format("List: ~p",[List]),
-  [H|_] = List,
-  H2 = string:substr(H, 1,string:str(H,".")-1),
-  io:format("H2: ~p",[H2]),
-  H2,
-  case H2 of
-    "test" -> "dev";
-    "dev" -> "dev";
-    "development" -> "dev";
-    "qa" -> "qa";
-    "production" -> "production";
-    "prod" -> "production";
-    _ -> Str
-  end.
+% getEnvFromHost(Str) ->
+%   Tokens = string:tokens(Str, "-"),
+%   io:format("Tokens: ~p",[Tokens]),
+%   List = lists:reverse(Tokens),
+%   io:format("List: ~p",[List]),
+%   [H|_] = List,
+%   H2 = string:substr(H, 1,string:str(H,".")-1),
+%   io:format("H2: ~p",[H2]),
+%   H2,
+%   case H2 of
+%     "test" -> "dev";
+%     "dev" -> "dev";
+%     "development" -> "dev";
+%     "qa" -> "qa";
+%     "production" -> "production";
+%     "prod" -> "production";
+%     _ -> Str
+%   end.
 
 libratoUrl() ->
   case os:getenv("LIBRATO_URL") of
