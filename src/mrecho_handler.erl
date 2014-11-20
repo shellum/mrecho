@@ -46,6 +46,7 @@ terminate(_Reason, _Req, _State) ->
   ok.
 
 getMetrics(Str,Source,MeasureList) ->
+  Period = <<"60">>,
   case Str of
     <<"measure#",_Rest/binary>> ->
       TagLen = string:len("measure#"),
@@ -68,15 +69,7 @@ getMetrics(Str,Source,MeasureList) ->
       TagLen = string:len("host="),
       Src = extractMetric(Str, TagLen),
       io:format("extractMetricz: ~p", [Src]),
-      ParsedSrc = case getLastPart(Src) of
-        "test" -> "dev";
-        "dev" -> "dev";
-        "development" -> "dev";
-        "qa" -> "qa";
-        "production" -> "production";
-        "prod" -> "production";
-        _ -> Src
-      end,
+      ParsedSrc = Src,
       io:format("ParsedSrc: ~p",[ParsedSrc]),
       getMetrics(list_to_binary(string:substr(binary_to_list(Str),TagLen+string:len(Src))),list_to_binary(ParsedSrc), MeasureList);
     <<"status=", _Rest/binary>> ->
@@ -85,7 +78,7 @@ getMetrics(Str,Source,MeasureList) ->
       K = list_to_binary("status." ++ StatusCode),
       V = <<"1">>,
       NewStart = string:len(StatusCode)+TagLen,
-      getMetrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,V},{source,Source}] | MeasureList]);
+      getMetrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,V},{source,Source},{period,Period}] | MeasureList]);
     _ ->
       case size(Str) of
         0 ->
@@ -102,7 +95,7 @@ extractMetric(Str, TagLen) ->
     _ -> string:substr(binary_to_list(Str), TagLen+1, SpaceIndex - TagLen-1)
   end.
 
-getLastPart(Str) ->
+getEnvFromHost(Str) ->
   Tokens = string:tokens(Str, "-"),
   io:format("Tokens: ~p",[Tokens]),
   List = lists:reverse(Tokens),
@@ -110,7 +103,16 @@ getLastPart(Str) ->
   [H|_] = List,
   H2 = string:substr(H, 1,string:str(H,".")-1),
   io:format("H2: ~p",[H2]),
-  H2.
+  H2,
+  case H2 of
+    "test" -> "dev";
+    "dev" -> "dev";
+    "development" -> "dev";
+    "qa" -> "qa";
+    "production" -> "production";
+    "prod" -> "production";
+    _ -> Str
+  end.
 
 libratoUrl() ->
   case os:getenv("LIBRATO_URL") of
