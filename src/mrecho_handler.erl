@@ -9,7 +9,8 @@
 
 -define(INDEX_SOURCE, 1).
 -define(INDEX_METRIC, 2).
-
+-define(METRIC_DELIMITER, " ").
+-define(AGGREGATION_SECONDS, <<"60">>).
 
 init(_Transport, Req, []) ->
   {ok, Req, undefined}.
@@ -24,9 +25,6 @@ handle(Req, State) ->
     0 ->
       {ok, Req2, State};
     _X ->
-      io:format("event list: ~p\n",[EventList]),
-      io:format("element1: ~p",[element(?INDEX_SOURCE,EventList)]),
-      io:format("element2: ~p",[element(?INDEX_METRIC,EventList)]),
       FormattedEventList = element(?INDEX_METRIC,EventList),
       Event = [{<<"gauges">>, FormattedEventList}],
       EncodedEvent = jsx:encode(Event),
@@ -55,39 +53,17 @@ terminate(_Reason, _Req, _State) ->
   ok.
 
 get_metrics(Str,Source,MeasureList) ->
-  Period = <<"60">>,
   case Str of
     <<"measure#",_Rest/binary>> ->
-      TagLen = string:len("measure#"),
-      KVPair = extract_metric(Str, TagLen),
-      [K,V] = binary:split(list_to_binary(KVPair), [<<"=">>],[]),
-      TunedV = binary:replace(V,<<"ms">>,<<"">>),
-      NewStart = size(K)+1+size(V)+TagLen,
-      get_metrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,TunedV},{source,Source}] | MeasureList]);
+      handle_measurement(Str, "measure#", Source, MeasureList);
     <<"count#",_Rest/binary>> ->
-      TagLen = string:len("count#"),
-      KVPair = extract_metric(Str, TagLen),
-      [K,V] = binary:split(list_to_binary(KVPair), [<<"=">>],[]),
-      NewStart = size(K)+1+size(V)+TagLen,
-      get_metrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,V},{source,Source}] | MeasureList]);
+      handle_measurement(Str, "count#", Source, MeasureList);
     <<"source=", _Rest/binary>> ->
-      TagLen = string:len("source="),
-      Src = extract_metric(Str, TagLen),
-      get_metrics(list_to_binary(string:substr(binary_to_list(Str),TagLen+string:len(Src))),list_to_binary(Src), MeasureList);
+      handle_host(Str, "source=", MeasureList);
     <<"host=", _Rest/binary>> ->
-      TagLen = string:len("host="),
-      Src = extract_metric(Str, TagLen),
-      io:format("extractMetricz: ~p", [Src]),
-      ParsedSrc = Src,
-      io:format("ParsedSrc: ~p",[ParsedSrc]),
-      get_metrics(list_to_binary(string:substr(binary_to_list(Str),TagLen+string:len(Src))),list_to_binary(ParsedSrc), MeasureList);
+      handle_host(Str, "host=", MeasureList);
     <<"status=", _Rest/binary>> ->
-      TagLen = string:len("status="),
-      StatusCode = extract_metric(Str, TagLen),
-      K = list_to_binary("status." ++ StatusCode),
-      V = <<"1">>,
-      NewStart = string:len(StatusCode)+TagLen,
-      get_metrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,V},{source,Source},{period,Period}] | MeasureList]);
+      handle_status(Str, "status=", Source, MeasureList);
     _ ->
       case size(Str) of
         0 ->
@@ -97,23 +73,45 @@ get_metrics(Str,Source,MeasureList) ->
       end
   end.
 
+handle_host(Str, IdString, MeasureList) ->
+  TagLen = string:len(IdString),
+  Src = extract_metric(Str, TagLen),
+  get_metrics(list_to_binary(string:substr(binary_to_list(Str),TagLen+string:len(Src))),list_to_binary(Src), MeasureList).
+
+handle_measurement(Str, IdString, Source, MeasureList) ->
+  TagLen = string:len(IdString),
+  KVPair = extract_metric(Str, TagLen),
+  [K,V] = binary:split(list_to_binary(KVPair), [<<"=">>],[]),
+  TunedV = binary:replace(V,<<"ms">>,<<"">>),
+  NewStart = size(K)+1+size(V)+TagLen,
+  get_metrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,TunedV},{source,Source}] | MeasureList]).
+
+handle_status(Str, IdString, Source, MeasureList) ->
+  TagLen = string:len(IdString),
+  StatusCode = extract_metric(Str, TagLen),
+  K = list_to_binary("status." ++ StatusCode),
+  V = <<"1">>,
+  NewStart = string:len(StatusCode)+TagLen,
+  get_metrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,V},{source,Source},{period,?AGGREGATION_SECONDS}] | MeasureList]).
+
 extract_metric(Str, TagLen) ->
-  SpaceIndex = string:str(binary_to_list(Str), " "),
-  case SpaceIndex of
-    0 -> string:substr(binary_to_list(Str), TagLen+1);
-    _ -> string:substr(binary_to_list(Str), TagLen+1, SpaceIndex - TagLen-1)
+  MetricDelimiterIndex = string:str(binary_to_list(Str), ?METRIC_DELIMITER),
+  LengthToSkip = TagLen+string:len(?METRIC_DELIMITER),
+  case MetricDelimiterIndex of
+    0 -> string:substr(binary_to_list(Str), LengthToSkip);
+    _ -> string:substr(binary_to_list(Str), LengthToSkip, MetricDelimiterIndex - LengthToSkip)
   end.
 
 librato_url() ->
   case os:getenv("LIBRATO_URL") of
       false -> "";
-      L -> L ++ ""
+      U -> U
   end.
 
 credentials() ->
   Email = case os:getenv("LIBRATO_EMAIL") of
       false -> "";
-      E -> E ++ ""
+      E -> E
   end,
   ApiKey = case os:getenv("LIBRATO_API_KEY") of
       false -> "";
