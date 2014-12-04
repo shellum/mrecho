@@ -5,6 +5,11 @@
 -export([init/3]).
 -export([handle/2]).
 -export([terminate/3]).
+-export([get_metrics/3]).
+
+-define(INDEX_SOURCE, 1).
+-define(INDEX_METRIC, 2).
+
 
 init(_Transport, Req, []) ->
   {ok, Req, undefined}.
@@ -15,21 +20,23 @@ handle(Req, State) ->
   io:format("body: ~p\n",[StrippedBody]),
   EventList = get_metrics(StrippedBody, list_to_binary("unknown"), []),
 
-  case length(element(2,EventList)) of
-    0 -> {ok, Req2, State};
+  case length(element(?INDEX_METRIC,EventList)) of
+    0 ->
+      {ok, Req2, State};
     _X ->
+      io:format("event list: ~p\n",[EventList]),
+      io:format("element1: ~p",[element(?INDEX_SOURCE,EventList)]),
+      io:format("element2: ~p",[element(?INDEX_METRIC,EventList)]),
+      FormattedEventList = element(?INDEX_METRIC,EventList),
+      Event = [{<<"gauges">>, FormattedEventList}],
+      EncodedEvent = jsx:encode(Event),
+      io:format("event json: ~p\n\n",[EncodedEvent]),
 
-  io:format("event list: ~p\n",[EventList]),
-  FormattedEventList = element(2,EventList),
-  Event = [{<<"gauges">>, FormattedEventList}],
-  EncodedEvent = jsx:encode(Event),
-  io:format("event json: ~p\n\n",[EncodedEvent]),
+      ResponseCode = send_metric(EncodedEvent),
+      Resp = "{code:'"++integer_to_list(ResponseCode)++"'}",
 
-  ResponseCode = send_metric(EncodedEvent),
-  Resp = "{code:'"++integer_to_list(ResponseCode)++"'}",
-
-  {ok, Req3} = cowboy_req:reply(200, [{<<"content-type">>, <<"application/json">>}], Resp, Req2),
-  {ok, Req3, State}
+      {ok, Req3} = cowboy_req:reply(200, [{<<"content-type">>, <<"application/json">>}], Resp, Req2),
+      {ok, Req3, State}
 end.
 
 send_metric(Events) ->
@@ -41,7 +48,7 @@ send_metric(Events) ->
       I;
     {error, socket_closed_remotely} ->
       {error, <<"No socket">>};
-    _ -> 0
+    _ -> 400
   end.
 
 terminate(_Reason, _Req, _State) ->
@@ -122,3 +129,7 @@ extract_metric_test() ->
   Size = size(TestMetric),
   Metric = extract_metric(<<TestMetric/binary,TestValue/binary,RestOfLine/binary>>,Size),
   Metric = "304".
+
+get_metrics_test() ->
+  Result = get_metrics(<<"at=info method=GET path=\"/invites/075e64a1ca86f9fcb392f8abe9c914248d7d3842\" host=oc-peerapi-qa.herokuapp.com request_id=aa0ffc40-a3f3-4af8-8914-171ebecbddfe fwd=\"65.121.23.138,54.82.146.82\" dyno=web.2 connect=2ms service=11ms status=200 bytes=779">>, <<"unknown">>,[]),
+  {<<"oc-peerapi-qa.herokuapp.com">>,[[{name,<<"status.200">>},{value,<<"1">>},{source,<<"oc-peerapi-qa.herokuapp.com">>},{period,<<"60">>}]]} = Result.
