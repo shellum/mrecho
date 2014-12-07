@@ -10,7 +10,7 @@
 -define(INDEX_SOURCE, 1).
 -define(INDEX_METRIC, 2).
 -define(METRIC_DELIMITER, " ").
--define(AGGREGATION_SECONDS, <<"60">>).
+-define(AGGREGATION_SECONDS, <<"300">>).
 
 init(_Transport, Req, []) ->
   {ok, Req, undefined}.
@@ -130,4 +130,4 @@ extract_metric_test() ->
 
 get_metrics_test() ->
   Result = get_metrics(<<"at=info method=GET path=\"/invites/075e64a1ca86f9fcb392f8abe9c914248d7d3842\" host=oc-peerapi-qa.herokuapp.com request_id=aa0ffc40-a3f3-4af8-8914-171ebecbddfe fwd=\"65.121.23.138,54.82.146.82\" dyno=web.2 connect=2ms service=11ms status=200 bytes=779">>, <<"unknown">>,[]),
-  {<<"oc-peerapi-qa.herokuapp.com">>,[[{name,<<"status.200">>},{value,<<"1">>},{source,<<"oc-peerapi-qa.herokuapp.com">>},{period,<<"60">>}]]} = Result.
+  {<<"oc-peerapi-qa.herokuapp.com">>,[[{name,<<"status.200">>},{value,<<"1">>},{source,<<"oc-peerapi-qa.herokuapp.com">>},{period,<<"300">>}]]} = Result.
