@@ -6,11 +6,15 @@
 -export([handle/2]).
 -export([terminate/3]).
 -export([get_metrics/3]).
+-export([handle_status/4]).
+-export([handle_measurement/4]).
+-export([handle_host/3]).
 
 -define(INDEX_SOURCE, 1).
 -define(INDEX_METRIC, 2).
 -define(METRIC_DELIMITER, " ").
--define(AGGREGATION_SECONDS, <<"300">>).
+-define(AGGREGATION_SECONDS_HIGH, <<"300">>).
+-define(AGGREGATION_SECONDS_LOW, <<"60">>).
 
 init(_Transport, Req, []) ->
   {ok, Req, undefined}.
@@ -84,7 +88,7 @@ handle_measurement(Str, IdString, Source, MeasureList) ->
   [K,V] = binary:split(list_to_binary(KVPair), [<<"=">>],[]),
   TunedV = binary:replace(V,<<"ms">>,<<"">>),
   NewStart = size(K)+1+size(V)+TagLen,
-  get_metrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,TunedV},{source,Source}] | MeasureList]).
+  get_metrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,TunedV},{source,Source},{period,?AGGREGATION_SECONDS_LOW}] | MeasureList]).
 
 handle_status(Str, IdString, Source, MeasureList) ->
   TagLen = string:len(IdString),
@@ -92,7 +96,7 @@ handle_status(Str, IdString, Source, MeasureList) ->
   K = list_to_binary("status." ++ StatusCode),
   V = <<"1">>,
   NewStart = string:len(StatusCode)+TagLen,
-  get_metrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,V},{source,Source},{period,?AGGREGATION_SECONDS}] | MeasureList]).
+  get_metrics(list_to_binary(string:substr(binary_to_list(Str),NewStart)), Source, [[{name, K},{value,V},{source,Source},{period,?AGGREGATION_SECONDS_LOW}] | MeasureList]).
 
 extract_metric(Str, TagLen) ->
   MetricDelimiterIndex = string:str(binary_to_list(Str), ?METRIC_DELIMITER),
@@ -120,6 +124,26 @@ credentials() ->
   list_to_binary(Email ++ ":" ++ ApiKey).
 
 
+handle_host_test() ->
+  Result =handle_host(<<"host=bob.com blah blah">>,"host=",[]),
+  {<<"bob.com">>,[]} = Result.
+
+handle_source_test() ->
+  Result =handle_host(<<"source=beta blah blah">>,"source=",[]),
+  {<<"beta">>,[]} = Result.
+
+handle_measurement_test() ->
+  Result = handle_measurement(<<"measure#status.200=217ms blah blah">>,"measure#",[],[]),
+  {[],[[{name,<<"status.200">>},{value,<<"217">>},{source,[]},{period,<<"60">>}]]} = Result.
+
+handle_count_test() ->
+  Result = handle_measurement(<<"count#cache.hit=1 blah blah">>,"count#",[],[]),
+  {[],[[{name,<<"cache.hit">>},{value,<<"1">>},{source,[]},{period,<<"60">>}]]} = Result.
+
+handle_status_test() ->
+  Result = handle_status(<<"status=200 blah blah">>,"status=",[],[]),
+  {[], [[{name,<<"status.200">>},{value,<<"1">>},{source,[]},{period,<<"60">>}]]} = Result.
+
 extract_metric_test() ->
   TestMetric = <<"status=">>,
   TestValue = <<"304">>,
@@ -130,4 +154,4 @@ extract_metric_test() ->
 
 get_metrics_test() ->
   Result = get_metrics(<<"at=info method=GET path=\"/invites/075e64a1ca86f9fcb392f8abe9c914248d7d3842\" host=oc-peerapi-qa.herokuapp.com request_id=aa0ffc40-a3f3-4af8-8914-171ebecbddfe fwd=\"65.121.23.138,54.82.146.82\" dyno=web.2 connect=2ms service=11ms status=200 bytes=779">>, <<"unknown">>,[]),
-  {<<"oc-peerapi-qa.herokuapp.com">>,[[{name,<<"status.200">>},{value,<<"1">>},{source,<<"oc-peerapi-qa.herokuapp.com">>},{period,<<"300">>}]]} = Result.
+  {<<"oc-peerapi-qa.herokuapp.com">>,[[{name,<<"status.200">>},{value,<<"1">>},{source,<<"oc-peerapi-qa.herokuapp.com">>},{period,<<"60">>}]]} = Result.
